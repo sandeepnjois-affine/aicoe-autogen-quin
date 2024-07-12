@@ -146,7 +146,13 @@ def handle_message(message):
         # st.markdown(f'<div style="font-size: 18px; font-weight: bold; color: #2e7d32;">{clean_text}</div>', unsafe_allow_html=True)
     # Handle normal text
     else:
-        if ' ' in str(message).strip():
+        if 'Next speaker:' in str(message).strip():
+            st.markdown(
+            f'<p style="color: green;">{str(message).strip()}</p>', unsafe_allow_html=True)
+        elif '(to chat_manager):' in str(message).strip():
+            st.markdown(
+            f'<p style="color: darkblue;">{str(message).strip()}</p>', unsafe_allow_html=True)
+        elif ' ' in str(message).strip():
             print('line 150:  ', str(message).strip())
             st.write(message)
         else:
