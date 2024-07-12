@@ -309,7 +309,7 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
 
     def get_db_results(generated_sql_query: str) -> pd.DataFrame:
         conn = odbc.connect(
-            "Driver={ODBC Driver 18 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
+            "Driver={ODBC Driver 17 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
         df = pd.read_sql(generated_sql_query, conn)
         # print("df fetched")
         no_of_tokens = count_tokens(str(df[:1]))
