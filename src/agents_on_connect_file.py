@@ -60,7 +60,7 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     llm_config = {"config_list": llm_config_azure}
 
     params = urllib.parse.quote_plus(
-        r'Driver={ODBC Driver 18 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;')
+        r'Driver={ODBC Driver 17 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;')
 
     connectionString = 'mssql+pyodbc:///?odbc_connect={}'.format(params)
     db_engine = create_engine(connectionString)
