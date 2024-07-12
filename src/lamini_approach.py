@@ -42,7 +42,7 @@ def similarity_search(query):
     results = search_client.search(
         search_text=query,
         vector_queries=[vector_query],
-        filter="sql_query ne 'NA' or  sql_query ne 'na'",
+        filter="(database_name eq 'albertson_quin') and (sql_query ne 'NA' or sql_query ne 'na')",
         select=["user_query", "sql_query"],
         query_type=QueryType.SEMANTIC, semantic_configuration_name='my-semantic-config', query_caption=QueryCaptionType.EXTRACTIVE, query_answer=QueryAnswerType.EXTRACTIVE,
         top=3)
@@ -230,5 +230,5 @@ def upload_to_search_index(query_list, sql_query, database_name):
 
 
 
-if __name__ == "__main__":
-    upload_to_search_index(['name of all the customers who are married males who have made a total purchase amount of atleast 10000'], "SELECT c.CustomerKey,c.FirstName,c.LastName FROM AdventureWorks_Customers c JOIN AdventureWorks_Sales s ON c.CustomerKey = s.CustomerKey JOIN AdventureWorks_Products p ON s.ProductKey = p.ProductKey WHERE c.Gender = 'M' AND c.MaritalStatus = 'M' GROUP BY c.CustomerKey, c.FirstName, c.LastName HAVING SUM(s.OrderQuantity * p.ProductPrice) >= 10000;", 'quickinsight')
+# if __name__ == "__main__":
+#     upload_to_search_index(['name of all the customers who are married males who have made a total purchase amount of atleast 10000'], "SELECT c.CustomerKey,c.FirstName,c.LastName FROM AdventureWorks_Customers c JOIN AdventureWorks_Sales s ON c.CustomerKey = s.CustomerKey JOIN AdventureWorks_Products p ON s.ProductKey = p.ProductKey WHERE c.Gender = 'M' AND c.MaritalStatus = 'M' GROUP BY c.CustomerKey, c.FirstName, c.LastName HAVING SUM(s.OrderQuantity * p.ProductPrice) >= 10000;", 'quickinsight')

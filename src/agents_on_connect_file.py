@@ -59,15 +59,18 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
 
     llm_config = {"config_list": llm_config_azure}
 
-    params = urllib.parse.quote_plus(
-        r'Driver={ODBC Driver 17 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;')
+    # raw_connection_str = "Driver={ODBC Driver 17 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
+    raw_connection_str = "Driver={ODBC Driver 17 for SQL Server};Server=tcp:git-demo.database.windows.net,1433;Database=albertson_quin;Uid=shreyas;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
+
+    params = urllib.parse.quote_plus(raw_connection_str)
 
     connectionString = 'mssql+pyodbc:///?odbc_connect={}'.format(params)
     db_engine = create_engine(connectionString)
 
     # include_tables = ['adidas_us_sales']
-    include_tables = ['AdventureWorks_Product_Subcategories',
-                      'AdventureWorks_Customers', 'AdventureWorks_Products', 'AdventureWorks_Sales']
+    # include_tables = ['AdventureWorks_Product_Subcategories',
+    #                   'AdventureWorks_Customers', 'AdventureWorks_Products', 'AdventureWorks_Sales']
+    include_tables = ['CUSTOMER_FIRST_EVENT', 'CUSTOMER_LAST_EVENT', 'CUSTOMER_PROFILE', 'CUSTOMER_SEGMENTS', 'TRANSACTION_UPC', 'UPC_Lookup']
 
     try:
         db = SQLDatabase(db_engine, view_support=True,
@@ -308,8 +311,7 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     #         return str(df[:max_rows].to_csv(index=False))
 
     def get_db_results(generated_sql_query: str) -> pd.DataFrame:
-        conn = odbc.connect(
-            "Driver={ODBC Driver 17 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
+        conn = odbc.connect(raw_connection_str)
         df = pd.read_sql(generated_sql_query, conn)
         # print("df fetched")
         no_of_tokens = count_tokens(str(df[:1]))
