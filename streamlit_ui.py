@@ -101,36 +101,43 @@ def handle_message(message):
     # Check for green text
     if "\x1B[32m" in message and "\x1B[0m" in message:
         clean_text = strip_ansi_codes(message)
+        print("line 104: ", clean_text)
         st.markdown(
             f'<p style="color: green;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for dark blue text
     elif "\x1B[33m" in message and "\x1B[0m" in message:
         clean_text = strip_ansi_codes(message)
+        print("line 110: ", clean_text)
         st.markdown(
             f'<p style="color: darkblue;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for magenta text
     elif "\x1B[35m" in message and "\x1B[0m" in message:
         clean_text = strip_ansi_codes(message)
+        print("line 116: ", clean_text)
         st.markdown(
             f'<p style="color: magenta;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for green text without closing sequence
     elif "\x1B[32m" in message and "\x1B[0m" not in message:
         clean_text = strip_ansi_codes(message.replace('\x1B[32m', ''))
+        print("line 122: ", clean_text)
         st.markdown(
             f'<p style="color: green;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for dark blue text without closing sequence
     elif "\x1B[33m" in message and "\x1B[0m" not in message:
         clean_text = strip_ansi_codes(message.replace('\x1B[33m', ''))
+        print("line 128: ", clean_text)
         st.markdown(
             f'<p style="color: darkblue;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for magenta text without closing sequence
     elif "\x1B[35m" in message and "\x1B[0m" not in message:
         clean_text = strip_ansi_codes(message.replace('\x1B[35m', ''))
+        print("line 134: ", clean_text)
         st.markdown(
             f'<p style="color: magenta;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for closing sequence without opening sequence
     elif "\x1B[0m" in message and "\x1B[32m" not in message and "\x1B[33m" not in message and "\x1B[35m" not in message:
         clean_text = strip_ansi_codes(message)
+        print("line 140: ", clean_text)
         if ' ' in str(clean_text).strip():
             st.write(clean_text)
         else:
@@ -140,6 +147,7 @@ def handle_message(message):
     # Handle normal text
     else:
         if ' ' in str(message).strip():
+            print('line 150:  ', str(message).strip())
             st.write(message)
         else:
             pass
