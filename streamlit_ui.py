@@ -240,21 +240,21 @@ if __name__ == "__main__":
 
     if not queue.empty():
         # Define the directory name
-        dir_name = '.cache'
+        # dir_name = '.cache'
 
-        # Get the current working directory
-        current_dir = os.getcwd()
+        # # Get the current working directory
+        # current_dir = os.getcwd()
 
-        # Construct the full path to the directory
-        dir_path = os.path.join(current_dir, dir_name)
+        # # Construct the full path to the directory
+        # dir_path = os.path.join(current_dir, dir_name)
 
-        # Check if the directory exists
-        if os.path.exists(dir_path) and os.path.isdir(dir_path):
-            # Remove the directory and its contents
-            shutil.rmtree(dir_path)
-            print(f"The directory '{dir_name}' has been deleted.")
-        else:
-            print(f"The directory '{dir_name}' does not exist.")
+        # # Check if the directory exists
+        # if os.path.exists(dir_path) and os.path.isdir(dir_path):
+        #     # Remove the directory and its contents
+        #     shutil.rmtree(dir_path)
+        #     print(f"The directory '{dir_name}' has been deleted.")
+        # else:
+        #     print(f"The directory '{dir_name}' does not exist.")
         result_summary = queue.get()
         # st.write(f'result_summary:\n{result_summary}\n\n')
         output_ = summarize_chat_result(result_summary)
