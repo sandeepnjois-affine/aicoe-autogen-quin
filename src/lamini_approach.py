@@ -34,22 +34,27 @@ from azure.search.documents.models import (
 )
 
 
-def similarity_search(query):
-
+def similarity_search(query, database_name='quickinsight', cache_threshold=0.94):
+    cached_sql_query = ''
     vector_query = VectorizedQuery(vector=generate_embeddings(
         query), k_nearest_neighbors=3, fields="user_query_vector")
 
     results = search_client.search(
-        search_text=query,
+        search_text="",
         vector_queries=[vector_query],
-        filter="sql_query ne 'NA' or  sql_query ne 'na'",
-        select=["user_query", "sql_query"],
-        query_type=QueryType.SEMANTIC, semantic_configuration_name='my-semantic-config', query_caption=QueryCaptionType.EXTRACTIVE, query_answer=QueryAnswerType.EXTRACTIVE,
+        filter=f"database_name eq '{database_name}' and sql_query ne 'NA'",
+        select=["user_query", "sql_query", "database_name"],
         top=3)
 
     results = list(results)
+    if results[0]:
+        results_ = results[0]
+        if results_['@search.score'] >= cache_threshold:
+            cached_sql_query = results_['sql_query']
 
-    return results
+    # results = [x for x in results]
+
+    return results, cached_sql_query
 
 
 # os.environ["AZURE_SEARCH_SERVICE_ENDPOINT"]
@@ -211,6 +216,9 @@ search_client = SearchClient(
 
 def upload_to_search_index(query_list, sql_query, database_name):
     documents = []
+    # similar_query_id = str(uuid.uuid4())
+    if str(sql_query).strip().lower() == 'na':
+        sql_query = 'NA'
     for i in query_list:
         item = {}
         item["id"] = str(uuid.uuid4())
@@ -218,6 +226,7 @@ def upload_to_search_index(query_list, sql_query, database_name):
         item["user_query"] = i
         item["sql_query"] = sql_query
         item["user_query_vector"] = generate_embeddings(i)
+        # item["similar_query_id"] = similar_query_id
         documents.append(item)
     search_client.upload_documents(documents)
     st.write("Updated memory")
@@ -230,5 +239,5 @@ def upload_to_search_index(query_list, sql_query, database_name):
 
 
 
-if __name__ == "__main__":
-    upload_to_search_index(['name of all the customers who are married males who have made a total purchase amount of atleast 10000'], "SELECT c.CustomerKey,c.FirstName,c.LastName FROM AdventureWorks_Customers c JOIN AdventureWorks_Sales s ON c.CustomerKey = s.CustomerKey JOIN AdventureWorks_Products p ON s.ProductKey = p.ProductKey WHERE c.Gender = 'M' AND c.MaritalStatus = 'M' GROUP BY c.CustomerKey, c.FirstName, c.LastName HAVING SUM(s.OrderQuantity * p.ProductPrice) >= 10000;", 'quickinsight')
+# if __name__ == "__main__":
+#     upload_to_search_index(['name of all the customers who are married males who have made a total purchase amount of atleast 10000'], "SELECT c.CustomerKey,c.FirstName,c.LastName FROM AdventureWorks_Customers c JOIN AdventureWorks_Sales s ON c.CustomerKey = s.CustomerKey JOIN AdventureWorks_Products p ON s.ProductKey = p.ProductKey WHERE c.Gender = 'M' AND c.MaritalStatus = 'M' GROUP BY c.CustomerKey, c.FirstName, c.LastName HAVING SUM(s.OrderQuantity * p.ProductPrice) >= 10000;", 'quickinsight')

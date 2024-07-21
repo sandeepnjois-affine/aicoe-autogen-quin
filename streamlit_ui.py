@@ -21,6 +21,98 @@ client = AzureOpenAI(
 
 
 
+def check_name_occurrences(data, key, name_value):
+    return sum(1 for entry in data if entry.get(key) == name_value)
+
+
+def get_critic_message(lst):
+  critic_messages = []
+
+  for entry in lst:
+      message = str(entry).strip().lower().split('critic message:')[1]
+      critic_messages.append(str(message).strip())
+  return ". ".join(critic_messages)
+
+
+
+
+def get_gpt_res(str_content, var):
+  pre_def_prompt = f'From the above given content, answer {var}:. Do NOT explain anything else, just answer this.'
+  prompt_ = 'Content:\n' + str_content + '\n' + pre_def_prompt
+  completion = client.chat.completions.create(
+    model='gpt-4o-05-13',
+    temperature=0,
+    messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
+              {"role": "user", "content": prompt_}])
+  output = completion.choices[0].message.content
+  return output
+
+def get_agent_chat_summary(chat_history, cost):
+    sql_query = ''
+    insights = ''
+    sql_critic_iter = 0
+    insights_critic_iter = 0
+    sql_critic_messages = ''
+    insights_critic_messages = ''
+    total_cost = 0
+    total_tokens = 0
+
+    terminator_cnt = check_name_occurrences(chat_history, 'name', 'terminator')
+    sql_critic_cnt = check_name_occurrences(chat_history, 'name', 'sql_critic')
+    insights_critic_cnt = check_name_occurrences(chat_history, 'name', 'insights_critic')
+
+
+
+    if terminator_cnt > 0:
+        if insights_critic_cnt > 0:
+          print("get_agent_chat_summary if if ")
+          insights = 'NA'
+          insights_critic_iter = 3
+          sql_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'sql_critic']
+          insights_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'insights_critic']
+          insights_critic_messages = get_critic_message(insights_critic_lst)
+          sql_query = get_gpt_res(sql_critic_lst[-1], 'generated_sql_query')
+          if sql_critic_cnt > 0:
+            sql_critic_iter = sql_critic_cnt
+            sql_critic_messages = get_critic_message(sql_critic_lst)
+          else:
+            sql_critic_iter = 1
+            sql_critic_messages = 'all-good'
+
+        else:
+          print("get_agent_chat_summary if else")
+          sql_query = 'NA'
+          sql_critic_iter = 3
+          insights = 'NA'
+          insights_critic_iter = 0
+          insights_critic_messages = 'NA'
+          sql_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'sql_critic']
+          sql_critic_messages = get_critic_message(sql_critic_lst)
+    else:
+          print("get_agent_chat_summary else")
+          sql_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'sql_critic']
+          insights_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'insights_critic']
+          insights_critic_iter = insights_critic_cnt
+          sql_query = get_gpt_res(insights_critic_lst[-1], 'generated_sql_query')
+          insights = get_gpt_res(insights_critic_lst[-1], 'insights')
+          insights_critic_messages = get_critic_message(insights_critic_lst)
+          if sql_critic_cnt > 0:
+            sql_critic_iter = sql_critic_cnt
+            sql_critic_messages = get_critic_message(sql_critic_lst)
+          else:
+            sql_critic_iter = 1
+            sql_critic_messages = 'all-good'
+
+    usage_excluding_cached_inference = cost['usage_excluding_cached_inference']
+    total_cost = usage_excluding_cached_inference['total_cost']
+    for model_key, model_data in cost['usage_excluding_cached_inference'].items():
+      if isinstance(model_data, dict) and 'total_tokens' in model_data:
+          total_tokens += model_data['total_tokens']
+
+    return sql_query, insights, sql_critic_iter, insights_critic_iter, sql_critic_messages, insights_critic_messages, total_cost, total_tokens
+
+
+
 def extract_list_of_dicts(input_string):
     try:
         # Use regex to find the list of dictionaries in the string
@@ -216,12 +308,12 @@ if __name__ == "__main__":
                     # user_query_and_few_shot_example = []
 
                     few_shot_example_list = []
-                    few_shot_example = similarity_search(user_query)
+                    few_shot_example, cached_sql_query = similarity_search(user_query)
                     for example in few_shot_example:
                         few_shot_example_list.append(
                             (example["user_query"], example["sql_query"]))
                     user_query_and_few_shot_example = user_query + \
-                        "###"+str(few_shot_example_list)
+                        "###"+str(few_shot_example_list)+"###"+str(cached_sql_query)
                     # user_query_and_few_shot_example.append(user_query)
                     # print("########################")
                     # print(few_shot_example_list)
@@ -269,28 +361,43 @@ if __name__ == "__main__":
         #     print(f"The directory '{dir_name}' has been deleted.")
         # else:
         #     print(f"The directory '{dir_name}' does not exist.")
-        result_summary = queue.get()
-        # st.write(f'result_summary:\n{result_summary}\n\n')
-        output_ = summarize_chat_result(result_summary)
-        manage_summary_format = [{"sql_query": "(generated_sql_query)", "insights": "(insights)", 'sql_critic_iter': '(Eg. 2)', 'sql_critic_messages': '(sql_critic_messages)',
-                                  'insights_critic_iter': '(Eg. 1)', 'insights_critic_messages': '(insights_critic_messages)', 'no_of_tokens': '(no_of_tokens)', 'cost': '(cost)'}]
-        output_ = output_[0]
-        sql_query = output_['sql_query']
-        insights = output_['insights']
-        sql_critic_iter = output_['sql_critic_iter']
-        sql_critic_messages = output_['sql_critic_messages']
-        insights_critic_iter = output_['insights_critic_iter']
-        insights_critic_messages = output_['insights_critic_messages']
-        no_of_tokens = output_['no_of_tokens']
-        cost = output_['cost']
+        # result_summary = queue.get()
+        # # st.write(f'result_summary:\n{result_summary}\n\n')
+        # output_ = summarize_chat_result(result_summary)
+        # manage_summary_format = [{"sql_query": "(generated_sql_query)", "insights": "(insights)", 'sql_critic_iter': '(Eg. 2)', 'sql_critic_messages': '(sql_critic_messages)',
+        #                           'insights_critic_iter': '(Eg. 1)', 'insights_critic_messages': '(insights_critic_messages)', 'no_of_tokens': '(no_of_tokens)', 'cost': '(cost)'}]
+        # output_ = output_[0]
+        # sql_query = output_['sql_query']
+        # insights = output_['insights']
+        # sql_critic_iter = output_['sql_critic_iter']
+        # sql_critic_messages = output_['sql_critic_messages']
+        # insights_critic_iter = output_['insights_critic_iter']
+        # insights_critic_messages = output_['insights_critic_messages']
+        # no_of_tokens = output_['no_of_tokens']
+        # cost = output_['cost']
+        chat_history_, cost_ = queue.get()
 
+        print("chat_history_:  ", chat_history_)
+        print("\n\n")
+        print("cost_:  ", cost_)
+        chat_history_res = get_agent_chat_summary(chat_history=chat_history_, cost=cost_)
+        print("chat_history_res:  ", chat_history_res)
+
+        sql_query = chat_history_res[0]
+        insights = chat_history_res[1]
+        sql_critic_iter = chat_history_res[2]
+        sql_critic_messages = chat_history_res[4]
+        insights_critic_iter = chat_history_res[3]
+        insights_critic_messages = chat_history_res[5]
+        no_of_tokens = chat_history_res[7]
+        cost = chat_history_res[6]
         # uploading
         # spinner - updating our data model
         # successfully updated
         # st.write("all retrieved.")
         # Display SQL query as code
         SQL_query = sqlparse.format(
-            sql_query, reindent=True, keyword_case='upper')
+            str(sql_query).strip('```').lstrip('sql').strip(), reindent=True, keyword_case='upper')
         # print("SQL_query: ", SQL_query)
         st.write('SQL Query:')
         st.code(SQL_query, language='sql')
