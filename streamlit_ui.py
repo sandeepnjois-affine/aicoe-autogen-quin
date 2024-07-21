@@ -37,15 +37,27 @@ def get_critic_message(lst):
 
 
 def get_gpt_res(str_content, var):
-  pre_def_prompt = f'From the above given content, answer {var}:. Do NOT explain anything else, just answer this.'
-  prompt_ = 'Content:\n' + str_content + '\n' + pre_def_prompt
-  completion = client.chat.completions.create(
-    model='gpt-4o-05-13',
-    temperature=0,
-    messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
-              {"role": "user", "content": prompt_}])
-  output = completion.choices[0].message.content
-  return output
+
+  if var == 'insights':
+    pre_def_prompt = f'From the above given content, extract the final {var}: mentioned to the user_question and answer just that. Do NOT explain anything else, just answer this.'
+    prompt_ = 'Content:\n' + str_content + '\n' + pre_def_prompt
+    completion = client.chat.completions.create(
+        model='gpt-4o-05-13',
+        temperature=0,
+        messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
+                {"role": "user", "content": prompt_}])
+    output = completion.choices[0].message.content
+    return output
+  elif var == 'generated_sql_query':
+    pre_def_prompt = f'From the above given content, extract the final {var}: mentioned and answer just that. Do NOT explain anything else, just answer this. Make sure to answer the executable generated_sql_query which is a SQL query and do NOT include triple backticks (```)'
+    prompt_ = 'Content:\n' + str_content + '\n' + pre_def_prompt
+    completion = client.chat.completions.create(
+        model='gpt-4o-05-13',
+        temperature=0,
+        messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
+                {"role": "user", "content": prompt_}])
+    output = completion.choices[0].message.content
+    return output
 
 def get_agent_chat_summary(chat_history, cost):
     sql_query = ''
@@ -74,11 +86,11 @@ def get_agent_chat_summary(chat_history, cost):
           if sql_critic_cnt > 0:
             sql_critic_iter = sql_critic_cnt
             sql_critic_messages = get_critic_message(sql_critic_lst)
-            sql_query = get_gpt_res(sql_critic_lst[-1], 'generated_sql_query')
+            sql_query = get_gpt_res("\n".join(sql_critic_lst[-3:]), 'generated_sql_query')
           else:
             sql_critic_iter = 1
             sql_critic_messages = 'all-good'
-            sql_query = get_gpt_res(insights_critic_lst[-1], 'generated_sql_query')
+            sql_query = get_gpt_res("\n".join(insights_critic_lst[-3:]), 'generated_sql_query')
 
         else:
           print("get_agent_chat_summary if else")
@@ -96,16 +108,16 @@ def get_agent_chat_summary(chat_history, cost):
           insights_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'insights_critic']
           insights_critic_iter = insights_critic_cnt
         #   sql_query = get_gpt_res(insights_critic_lst[-1], 'generated_sql_query')
-          insights = get_gpt_res(insights_critic_lst[-1], 'insights')
+          insights = get_gpt_res("\n".join(insights_critic_lst[-3:]), 'insights')
           insights_critic_messages = get_critic_message(insights_critic_lst)
           if sql_critic_cnt > 0:
             sql_critic_iter = sql_critic_cnt
             sql_critic_messages = get_critic_message(sql_critic_lst)
-            sql_query = get_gpt_res(sql_critic_lst[-1], 'generated_sql_query')
+            sql_query = get_gpt_res("\n".join(sql_critic_lst[-3:]), 'generated_sql_query')
           else:
             sql_critic_iter = 1
             sql_critic_messages = 'all-good'
-            sql_query = get_gpt_res(insights_critic_lst[-1], 'generated_sql_query')
+            sql_query = get_gpt_res("\n".join(insights_critic_lst[-3:]), 'generated_sql_query')
 
     usage_excluding_cached_inference = cost['usage_excluding_cached_inference']
     total_cost = usage_excluding_cached_inference['total_cost']
@@ -197,43 +209,43 @@ def handle_message(message):
     # Check for green text
     if "\x1B[32m" in message and "\x1B[0m" in message:
         clean_text = strip_ansi_codes(message)
-        print("line 104: ", clean_text)
+        # print("line 104: ", clean_text)
         st.markdown(
             f'<p style="color: green;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for dark blue text
     elif "\x1B[33m" in message and "\x1B[0m" in message:
         clean_text = strip_ansi_codes(message)
-        print("line 110: ", clean_text)
+        # print("line 110: ", clean_text)
         st.markdown(
             f'<p style="color: darkblue;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for magenta text
     elif "\x1B[35m" in message and "\x1B[0m" in message:
         clean_text = strip_ansi_codes(message)
-        print("line 116: ", clean_text)
+        # print("line 116: ", clean_text)
         st.markdown(
             f'<p style="color: magenta;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for green text without closing sequence
     elif "\x1B[32m" in message and "\x1B[0m" not in message:
         clean_text = strip_ansi_codes(message.replace('\x1B[32m', ''))
-        print("line 122: ", clean_text)
+        # print("line 122: ", clean_text)
         st.markdown(
             f'<p style="color: green;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for dark blue text without closing sequence
     elif "\x1B[33m" in message and "\x1B[0m" not in message:
         clean_text = strip_ansi_codes(message.replace('\x1B[33m', ''))
-        print("line 128: ", clean_text)
+        # print("line 128: ", clean_text)
         st.markdown(
             f'<p style="color: darkblue;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for magenta text without closing sequence
     elif "\x1B[35m" in message and "\x1B[0m" not in message:
         clean_text = strip_ansi_codes(message.replace('\x1B[35m', ''))
-        print("line 134: ", clean_text)
+        # print("line 134: ", clean_text)
         st.markdown(
             f'<p style="color: magenta;">{clean_text}</p>', unsafe_allow_html=True)
     # Check for closing sequence without opening sequence
     elif "\x1B[0m" in message and "\x1B[32m" not in message and "\x1B[33m" not in message and "\x1B[35m" not in message:
         clean_text = strip_ansi_codes(message)
-        print("line 140: ", clean_text)
+        # print("line 140: ", clean_text)
         if ' ' in str(clean_text).strip():
             st.write(clean_text)
         else:
@@ -249,7 +261,7 @@ def handle_message(message):
             st.markdown(
             f'<p style="color: darkblue;">{str(message).strip()}</p>', unsafe_allow_html=True)
         elif ' ' in str(message).strip():
-            print('line 150:  ', str(message).strip())
+            # print('line 150:  ', str(message).strip())
             st.write(message)
         else:
             pass
@@ -408,8 +420,7 @@ if __name__ == "__main__":
         ################################################################
         few_shot_list = openai_chat(user_query, SQL_query, 3)
         few_shot_list.append(user_query)
-        upload_to_search_index(few_shot_list, SQL_query,
-                               database_name="quickinsight")
+        upload_to_search_index(few_shot_list, SQL_query)
         ########################################################################
         # Display insights prominently
         st.markdown(

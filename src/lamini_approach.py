@@ -57,23 +57,18 @@ def similarity_search(query, database_name='quickinsight', cache_threshold=0.94)
     return results, cached_sql_query
 
 
-# os.environ["AZURE_SEARCH_SERVICE_ENDPOINT"]
 azure_search_service_endpoint = st.secrets["AZURE_SEARCH_SERVICE_ENDPOINT"]
-# os.environ["AZURE_SEARCH_ADMIN_KEY"]
 azure_search_admin_key = st.secrets["AZURE_SEARCH_SERVICE_KEY"]
 credential = AzureKeyCredential(azure_search_admin_key)
 index_name = st.secrets["AZURE_INDEX"] # os.environ["index_name"]
-
-# os.environ["AZURE_OPENAI_ENDPOINT"]
 azure_openai_endpoint = st.secrets["AZURE_OPENAI_ENDPOINT"]
-# os.environ["AZURE_OPENAI_KEY"]
 azure_openai_key = st.secrets["AZURE_OPENAI_KEY"]
-# os.environ["AZURE_OPENAI_API_Version"]
 azure_openai_api_version = st.secrets["AZURE_OPENAI_VERSION"]
-# os.environ["AZURE_OPENAI_GPT_MODEL_DEPLOYMENT_NAME"]
 azure_openai_gpt_model_deployment_name = st.secrets["AZURE_OPENAI_MODEL"]
-# os.environ["AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME"]
 azure_openai_embedding_deployment_name = st.secrets["AZURE_EMBEDDING_MODEL"]
+
+
+
 
 client = AzureOpenAI(
     api_key=azure_openai_key,
@@ -214,7 +209,7 @@ search_client = SearchClient(
 # Upload some documents to the index
 
 
-def upload_to_search_index(query_list, sql_query, database_name):
+def upload_to_search_index(query_list, sql_query, database_name="quickinsight"):
     documents = []
     # similar_query_id = str(uuid.uuid4())
     if str(sql_query).strip().lower() == 'na':

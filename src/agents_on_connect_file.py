@@ -60,6 +60,8 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
 
     ]
 
+
+
     llm_config = {"config_list": llm_config_azure}
 
     params = urllib.parse.quote_plus(
