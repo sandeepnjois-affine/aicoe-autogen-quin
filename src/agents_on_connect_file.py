@@ -14,6 +14,7 @@ import pandas as pd
 import pyodbc as odbc
 import streamlit as st
 
+
 def on_connect(iostream: IOWebsockets, queue) -> None:
     print(
         f" - on_connect(): Connected to client using IOWebsockets {iostream}", flush=True)
