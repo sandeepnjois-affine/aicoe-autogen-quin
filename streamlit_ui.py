@@ -71,13 +71,14 @@ def get_agent_chat_summary(chat_history, cost):
           sql_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'sql_critic']
           insights_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'insights_critic']
           insights_critic_messages = get_critic_message(insights_critic_lst)
-          sql_query = get_gpt_res(sql_critic_lst[-1], 'generated_sql_query')
           if sql_critic_cnt > 0:
             sql_critic_iter = sql_critic_cnt
             sql_critic_messages = get_critic_message(sql_critic_lst)
+            sql_query = get_gpt_res(sql_critic_lst[-1], 'generated_sql_query')
           else:
             sql_critic_iter = 1
             sql_critic_messages = 'all-good'
+            sql_query = get_gpt_res(insights_critic_lst[-1], 'generated_sql_query')
 
         else:
           print("get_agent_chat_summary if else")
@@ -87,21 +88,24 @@ def get_agent_chat_summary(chat_history, cost):
           insights_critic_iter = 0
           insights_critic_messages = 'NA'
           sql_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'sql_critic']
-          sql_critic_messages = get_critic_message(sql_critic_lst)
+          if len(sql_critic_lst) > 0:
+            sql_critic_messages = get_critic_message(sql_critic_lst)
     else:
           print("get_agent_chat_summary else")
           sql_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'sql_critic']
           insights_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'insights_critic']
           insights_critic_iter = insights_critic_cnt
-          sql_query = get_gpt_res(insights_critic_lst[-1], 'generated_sql_query')
+        #   sql_query = get_gpt_res(insights_critic_lst[-1], 'generated_sql_query')
           insights = get_gpt_res(insights_critic_lst[-1], 'insights')
           insights_critic_messages = get_critic_message(insights_critic_lst)
           if sql_critic_cnt > 0:
             sql_critic_iter = sql_critic_cnt
             sql_critic_messages = get_critic_message(sql_critic_lst)
+            sql_query = get_gpt_res(sql_critic_lst[-1], 'generated_sql_query')
           else:
             sql_critic_iter = 1
             sql_critic_messages = 'all-good'
+            sql_query = get_gpt_res(insights_critic_lst[-1], 'generated_sql_query')
 
     usage_excluding_cached_inference = cost['usage_excluding_cached_inference']
     total_cost = usage_excluding_cached_inference['total_cost']
