@@ -367,7 +367,8 @@ if __name__ == "__main__":
                             print(
                                 " - Received COMPLETED message. Exiting.", flush=True)
                             break
-
+    
+    time.sleep(2)
     if not queue.empty():
         # Define the directory name
         # dir_name = '.cache'
@@ -447,3 +448,5 @@ if __name__ == "__main__":
         st.write("Number of Tokens:", no_of_tokens)
         st.write("")
         st.write("Cost:", cost)
+
+    print("No queue found")
