@@ -14,10 +14,11 @@ import sqlparse
 import os
 import shutil
 # Function to handle and display messages
+
 client = AzureOpenAI(
-    azure_endpoint='https://aipractices.openai.azure.com/',
-    api_version='2023-12-01-preview',
-    api_key='1dfa2422e0ba43a88044e87df4655c4c')
+    azure_endpoint=st.secrets["AZURE_OPENAI_ENDPOINT"],
+    api_version=st.secrets["AZURE_OPENAI_VERSION"],
+    api_key=st.secrets["AZURE_OPENAI_KEY"])
 
 
 
@@ -42,7 +43,7 @@ def get_gpt_res(str_content, var):
     pre_def_prompt = f'From the above given content, extract the final {var}: mentioned to the user_question and answer just that. Do NOT explain anything else, just answer this.'
     prompt_ = 'Content:\n' + str_content + '\n' + pre_def_prompt
     completion = client.chat.completions.create(
-        model='gpt-4o-05-13',
+        model=st.secrets["AZURE_OPENAI_MODEL"],
         temperature=0,
         messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
                 {"role": "user", "content": prompt_}])
@@ -52,7 +53,7 @@ def get_gpt_res(str_content, var):
     pre_def_prompt = f'From the above given content, extract the final {var}: mentioned and answer just that. Do NOT explain anything else, just answer this. Make sure to answer the executable generated_sql_query which is a SQL query and do NOT include triple backticks (```)'
     prompt_ = 'Content:\n' + str_content + '\n' + pre_def_prompt
     completion = client.chat.completions.create(
-        model='gpt-4o-05-13',
+        model=st.secrets["AZURE_OPENAI_MODEL"],
         temperature=0,
         messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
                 {"role": "user", "content": prompt_}])
@@ -186,7 +187,7 @@ def summarize_chat_result(chat_result):
     chat_result -- > {str(chat_result)}"""
 
     completion = client.chat.completions.create(
-        model='gpt-4o-05-13',
+        model=st.secrets["AZURE_OPENAI_MODEL"],
         temperature=0,
         messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
                   {"role": "user", "content": prompt}])
