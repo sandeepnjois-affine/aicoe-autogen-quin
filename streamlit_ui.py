@@ -15,6 +15,7 @@ import os
 import shutil
 # Function to handle and display messages
 
+
 client = AzureOpenAI(
     azure_endpoint=st.secrets["AZURE_OPENAI_ENDPOINT"],
     api_version=st.secrets["AZURE_OPENAI_VERSION"],
