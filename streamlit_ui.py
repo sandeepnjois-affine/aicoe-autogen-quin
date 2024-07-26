@@ -448,5 +448,5 @@ if __name__ == "__main__":
         st.write("Number of Tokens:", no_of_tokens)
         st.write("")
         st.write("Cost:", cost)
-
-    print("No queue found")
+    else:
+        print("No queue found")
