@@ -20,6 +20,7 @@ client = AzureOpenAI(
     api_version=st.secrets["AZURE_OPENAI_VERSION"],
     api_key=st.secrets["AZURE_OPENAI_KEY"])
 
+print("client object")
 
 
 def check_name_occurrences(data, key, name_value):
@@ -38,27 +39,29 @@ def get_critic_message(lst):
 
 
 def get_gpt_res(str_content, var):
-
-  if var == 'insights':
-    pre_def_prompt = f'From the above given content, extract the final {var}: mentioned to the user_question and answer just that. Do NOT explain anything else, just answer this.'
-    prompt_ = 'Content:\n' + str_content + '\n' + pre_def_prompt
-    completion = client.chat.completions.create(
-        model=st.secrets["AZURE_OPENAI_MODEL"],
-        temperature=0,
-        messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
-                {"role": "user", "content": prompt_}])
-    output = completion.choices[0].message.content
-    return output
-  elif var == 'generated_sql_query':
-    pre_def_prompt = f'From the above given content, extract the final {var}: mentioned and answer just that. Do NOT explain anything else, just answer this. Make sure to answer the executable generated_sql_query which is a SQL query and do NOT include triple backticks (```)'
-    prompt_ = 'Content:\n' + str_content + '\n' + pre_def_prompt
-    completion = client.chat.completions.create(
-        model=st.secrets["AZURE_OPENAI_MODEL"],
-        temperature=0,
-        messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
-                {"role": "user", "content": prompt_}])
-    output = completion.choices[0].message.content
-    return output
+  try:
+    if var == 'insights':
+        pre_def_prompt = f'From the above given content, extract the final {var}: mentioned to the user_question and answer just that. Do NOT explain anything else, just answer this.'
+        prompt_ = 'Content:\n' + str_content + '\n' + pre_def_prompt
+        completion = client.chat.completions.create(
+            model=st.secrets["AZURE_OPENAI_MODEL"],
+            temperature=0,
+            messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
+                    {"role": "user", "content": prompt_}])
+        output = completion.choices[0].message.content
+        return output
+    elif var == 'generated_sql_query':
+        pre_def_prompt = f'From the above given content, extract the final {var}: mentioned and answer just that. Do NOT explain anything else, just answer this. Make sure to answer the executable generated_sql_query which is a SQL query and do NOT include triple backticks (```)'
+        prompt_ = 'Content:\n' + str_content + '\n' + pre_def_prompt
+        completion = client.chat.completions.create(
+            model=st.secrets["AZURE_OPENAI_MODEL"],
+            temperature=0,
+            messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
+                    {"role": "user", "content": prompt_}])
+        output = completion.choices[0].message.content
+  except Exception as e:
+        print("Exception in get_gpt_res as: ", e)
+  return output
 
 def get_agent_chat_summary(chat_history, cost):
     sql_query = ''
@@ -185,15 +188,18 @@ def summarize_chat_result(chat_result):
 
 
     chat_result -- > {str(chat_result)}"""
-
-    completion = client.chat.completions.create(
-        model=st.secrets["AZURE_OPENAI_MODEL"],
-        temperature=0,
-        messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
-                  {"role": "user", "content": prompt}])
-    output = completion.choices[0].message.content
-    # print('output LLM', output)
-    output_ = extract_list_of_dicts(output)
+    output_ = []
+    try:
+        completion = client.chat.completions.create(
+            model=st.secrets["AZURE_OPENAI_MODEL"],
+            temperature=0,
+            messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
+                    {"role": "user", "content": prompt}])
+        output = completion.choices[0].message.content
+        # print('output LLM', output)
+        output_ = extract_list_of_dicts(output)
+    except Exception as e:
+        print("Exception in summarize_chat_result as:  ", e)
     # print('output_ LLM:', output_)
     # sql_query = output_[0]['sql_query']
     # insights = output_[0]['insights']
