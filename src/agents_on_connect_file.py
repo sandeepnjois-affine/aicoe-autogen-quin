@@ -162,7 +162,7 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     3. Understand the intent of the user query while framing the SQL query. The SQL query has to CORRECTLY translate the user query with all the details.
     4. Be very sure to check the datatype of columns as well while framing conditions. If required, CAST to required dataframe
     5. Use TOP instead of LIMIT
-    6. After using sql_db_query tool, STRICTLY consider ONLY 3 records  from the results obtained from the database
+    6. After using sql_db_query tool, consider the no. of records specified in the user_question. If no. of rows or records needed are not mentioned in the user_question then STRICTLY consider ONLY 3 records  from the results obtained from the database
     7. Answer only unique rows
     8. Consider the following list of tuple containing user query and sql query pair as reference to generate the sql query for the user question.
     """+few_shot_examples+"""

@@ -21,7 +21,6 @@ client = AzureOpenAI(
     api_version=st.secrets["AZURE_OPENAI_VERSION"],
     api_key=st.secrets["AZURE_OPENAI_KEY"])
 
-print("client object")
 
 
 def check_name_occurrences(data, key, name_value):
@@ -129,6 +128,14 @@ def get_agent_chat_summary(chat_history, cost):
     for model_key, model_data in cost['usage_excluding_cached_inference'].items():
       if isinstance(model_data, dict) and 'total_tokens' in model_data:
           total_tokens += model_data['total_tokens']
+
+    if total_cost == 0:
+      usage_including_cached_inference = cost['usage_including_cached_inference']
+      total_cost = usage_including_cached_inference['total_cost']
+      for model_key, model_data in cost['usage_including_cached_inference'].items():
+        if isinstance(model_data, dict) and 'total_tokens' in model_data:
+          total_tokens += model_data['total_tokens']
+
 
     return sql_query, insights, sql_critic_iter, insights_critic_iter, sql_critic_messages, insights_critic_messages, total_cost, total_tokens
 
@@ -450,3 +457,7 @@ if __name__ == "__main__":
         st.write("Cost:", cost)
     else:
         print("No queue found")
+
+
+
+
