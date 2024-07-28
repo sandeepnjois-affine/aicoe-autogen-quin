@@ -20,8 +20,7 @@ import re
 
 
 
-db_creds_string = st.secrets['DB_STRING']
-db_creds_string = "Driver={ODBC Driver 18 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
+db_creds_string = st.secrets["DB_STRING"]
 
 class SQLExecutorAgent(AssistantAgent):
     def __init__(self, name, llm_config: dict, system_message: str, human_input_mode:str, **kwargs):
