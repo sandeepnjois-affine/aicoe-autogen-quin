@@ -21,6 +21,7 @@ import re
 
 
 db_creds_string = st.secrets["DB_STRING"]
+print("db_creds_string:  ", db_creds_string)
 
 class SQLExecutorAgent(AssistantAgent):
     def __init__(self, name, llm_config: dict, system_message: str, human_input_mode:str, **kwargs):
@@ -149,6 +150,7 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
 
     # 1. Receive Initial Message
     initial_msg = iostream.input()
+    print("db_creds_string:   ", db_creds_string)
     print("###################1######################")
     print("initial_msg:\n", initial_msg)
     print("###################2######################")
