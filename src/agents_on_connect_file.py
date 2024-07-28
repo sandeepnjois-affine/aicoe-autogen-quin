@@ -1,5 +1,8 @@
 from datetime import datetime
 import autogen
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from autogen import Agent, AssistantAgent
+
 from langchain.sql_database import SQLDatabase
 from langchain_openai import AzureChatOpenAI
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
@@ -13,6 +16,130 @@ from queue import Queue
 import pandas as pd
 import pyodbc as odbc
 import streamlit as st
+import re
+
+
+
+db_creds_string = st.secrets['DB_STRING']
+db_creds_string = "Driver={ODBC Driver 18 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
+
+class SQLExecutorAgent(AssistantAgent):
+    def __init__(self, name, llm_config: dict, system_message: str, human_input_mode:str, **kwargs):
+        super().__init__(name, llm_config=llm_config, system_message=system_message, human_input_mode=human_input_mode, **kwargs)
+        self.register_reply([Agent, None], SQLExecutorAgent.generate_sql_reply)
+
+    def send(
+        self,
+        message: Union[Dict, str],
+        recipient: Agent,
+        request_reply: Optional[bool] = None,
+        silent: Optional[bool] = False,
+    ):
+        # override and always "silent" the send out message;
+        # otherwise, the print log would be super long!
+        super().send(message, recipient, request_reply, silent=True)
+
+    @staticmethod
+    def rows_within_context(df, avg_tokens_per_row, context_length):
+        """
+        Calculate the number of rows that fit within the given context length.
+
+        Parameters:
+        df (pd.DataFrame): DataFrame containing the data
+        avg_tokens_per_row (int): The average number of tokens per row
+        context_length (int): The maximum context length of the OpenAI model
+
+        Returns:
+        int: The number of rows that fit within the context length
+        """
+        num_rows = len(df)
+        max_rows = context_length // avg_tokens_per_row
+        max_rows = int(max_rows * 0.7)
+        return min(num_rows, max_rows)
+
+    @staticmethod
+    def count_tokens(text: str, model_name: str = 'cl100k_base') -> int:
+        try:
+            # first we will load the tokenizer
+            tokenizer = tiktoken.get_encoding(model_name)
+
+            # we will encode the input text
+            tokens = tokenizer.encode(text)
+            return len(tokens)
+        except KeyError:
+            print(
+                f"Model '{model_name}' not found. Supported models are: {', '.join(get_supported_encodings())}")
+            return -1
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return -1
+
+    def get_db_results(self, generated_sql_query: str) -> pd.DataFrame:
+        conn = odbc.connect(db_creds_string)
+        df = pd.read_sql(generated_sql_query, conn)
+        # print("df fetched")
+        no_of_tokens = self.count_tokens(str(df[:1]))
+        # print("no_of_tokens: ", no_of_tokens)
+        max_rows = self.rows_within_context(df, no_of_tokens, context_length=8000)
+        # print("max_rows")
+        # return str(df[:100].to_csv(index=False))
+        if len(df) <= max_rows:
+            # df_insights = df
+            # print("df_insights", df.head(2))
+            return str(df.to_csv(index=False))
+        else:
+            # df_insights = df[:max_rows]
+            # print("df_insights", df.head(2))
+
+            return str(df[:max_rows].to_csv(index=False))
+
+    @staticmethod
+    def extract_sql(text):
+        # Regular expression pattern to match the string between "generated_sql_query:" and "Score:"
+        pattern = r'generated_sql_query:(.*?)Score:'
+        
+        # Search for the pattern in the provided text
+        match = re.search(pattern, text, re.DOTALL)
+        
+        # If a match is found, return the captured group, otherwise return None
+        return match.group(1).strip() if match else None
+
+    @staticmethod
+    def extract_user_question(text):
+        # Regular expression pattern to match the string between "generated_sql_query:" and "Score:"
+        pattern = r'user_question:(.*?)generated_sql_query:'
+        
+        # Search for the pattern in the provided text
+        match = re.search(pattern, text, re.DOTALL)
+        
+        # If a match is found, return the captured group, otherwise return None
+        return match.group(1).strip() if match else None
+
+    def generate_sql_reply(self, messages: Optional[List[Dict]], sender: "Agent", config):
+        """Generate a reply using SQL DB."""
+        if messages is None:
+            messages = self._oai_messages[sender]
+        previous_msg = messages[-1]["content"]
+        # print("previous_msg: ", previous_msg)
+        sql_query_ = self.extract_sql(previous_msg).strip('`').strip('```').lstrip('sql').strip()
+        # print("sql_query_: ", sql_query_)
+        user_question = self.extract_user_question(previous_msg).strip()
+
+        db_results = self.get_db_results(sql_query_)
+
+
+    #         user_question: (user_question)
+    # generated_sql_query: (generated_sql_query)
+    # db_result:
+
+        db_results_ = f"""
+        user_question: {user_question}
+        generated_sql_query: {sql_query_}
+        db_result: {db_results}
+        TERMINATE-AGENT
+        """
+        print("db_results_:   ", db_results_)
+        return True, {"content": db_results_, 'role': 'user', 'name': 'sql_query_executor'}
 
 
 def on_connect(iostream: IOWebsockets, queue) -> None:
@@ -61,11 +188,10 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     ]
 
 
-
     llm_config = {"config_list": llm_config_azure}
 
     params = urllib.parse.quote_plus(
-        r'Driver={ODBC Driver 17 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;')
+        rf'{db_creds_string}')
 
     connectionString = 'mssql+pyodbc:///?odbc_connect={}'.format(params)
     db_engine = create_engine(connectionString)
@@ -296,7 +422,7 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     )
     # sql_critic.register_function(function_map=function_map_critic)
 
-    # Agent 3
+    ### Agent 3 default
 
     # def get_db_results(generated_sql_query: str) -> str:
     #     conn = odbc.connect("Driver={ODBC Driver 18 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
@@ -312,25 +438,25 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     #     else:
     #         return str(df[:max_rows].to_csv(index=False))
 
-    def get_db_results(generated_sql_query: str) -> pd.DataFrame:
-        conn = odbc.connect(
-            "Driver={ODBC Driver 17 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
-        df = pd.read_sql(generated_sql_query, conn)
-        # print("df fetched")
-        no_of_tokens = count_tokens(str(df[:1]))
-        # print("no_of_tokens")
-        max_rows = rows_within_context(df, no_of_tokens, context_length=8000)
-        # print("max_rows")
-        # return str(df[:100].to_csv(index=False))
-        if len(df) <= max_rows:
-            # df_insights = df
-            # print("df_insights", df_insights.head(2))
-            return str(df.to_csv(index=False))
-        else:
-            # df_insights = df[:max_rows]
-            # print("df_insights", df_insights.head(2))
+    # def get_db_results(generated_sql_query: str) -> pd.DataFrame:
+    #     conn = odbc.connect(
+    #         "Driver={ODBC Driver 17 for SQL Server};Server=tcp:quickazuredemo.database.windows.net,1433;Database=quickinsight;Uid=bhaskar;Pwd=Affine@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;")
+    #     df = pd.read_sql(generated_sql_query, conn)
+    #     # print("df fetched")
+    #     no_of_tokens = count_tokens(str(df[:1]))
+    #     # print("no_of_tokens")
+    #     max_rows = rows_within_context(df, no_of_tokens, context_length=8000)
+    #     # print("max_rows")
+    #     # return str(df[:100].to_csv(index=False))
+    #     if len(df) <= max_rows:
+    #         # df_insights = df
+    #         # print("df_insights", df_insights.head(2))
+    #         return str(df.to_csv(index=False))
+    #     else:
+    #         # df_insights = df[:max_rows]
+    #         # print("df_insights", df_insights.head(2))
 
-            return str(df[:max_rows].to_csv(index=False))
+    #         return str(df[:max_rows].to_csv(index=False))
 
     sql_query_executor_system_message = """
     You can help with executing SQL query and fetching results from database.
@@ -351,37 +477,48 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
 
     """
 
-    # sql_query_executor_system_message = """
-    # Your task is to take the generated_sql_query input you get and call and execute 'get_db_results' function
-    # ALWAYS call 'get_db_results'.
+    # # sql_query_executor_system_message = """
+    # # Your task is to take the generated_sql_query input you get and call and execute 'get_db_results' function
+    # # ALWAYS call 'get_db_results'.
 
-    # After executing 'get_db_results', answer user_question and generated_sql_query like mentioned in the format below. Answer 'TERMINATE-AGENT' in the last.
-    # Format:
-    # user_question: (user_question)
-    # generated_sql_query: (generated_sql_query)
+    # # After executing 'get_db_results', answer user_question and generated_sql_query like mentioned in the format below. Answer 'TERMINATE-AGENT' in the last.
+    # # Format:
+    # # user_question: (user_question)
+    # # generated_sql_query: (generated_sql_query)
 
-    # """
+    # # """
 
-    # Agent 3
-    sql_query_executor = autogen.AssistantAgent(
-        name="sql_query_executor",
-        system_message=sql_query_executor_system_message + tip_message,
-        human_input_mode="NEVER",
-        llm_config=llm_config_common
-    )
+    # 
+    # sql_query_executor = autogen.AssistantAgent(
+    #     name="sql_query_executor",
+    #     system_message=sql_query_executor_system_message + tip_message,
+    #     human_input_mode="NEVER",
+    #     llm_config=llm_config_common
+    # )
 
-    # Register the tool signature with the assistant agent.
-    sql_query_executor.register_for_llm(
-        name="get_db_results", description="Executes SQL query and saves the result")(get_db_results)
+    # # Register the tool signature with the assistant agent.
+    # sql_query_executor.register_for_llm(
+    #     name="get_db_results", description="Executes SQL query and saves the result")(get_db_results)
 
-    # Register the tool function with the user proxy agent.
-    user_proxy.register_for_execution(name="get_db_results")(get_db_results)
+    # # Register the tool function with the user proxy agent.
+    # user_proxy.register_for_execution(name="get_db_results")(get_db_results)
 
     # Agent 4
 
     #    You will recieve a user_question in natural language, generated_sql_query and a df dataframe as inputs.
 
     # dataframe: {df_insights.to_csv(index=False)}
+
+
+
+    ### Agent 3 new
+    sql_query_executor = SQLExecutorAgent(
+        name="sql_query_executor",
+        system_message=sql_query_executor_system_message + tip_message,
+        human_input_mode="NEVER",
+        llm_config=llm_config_common
+    )
+
 
     insights_generator_system_message = f"""
     You are an expert in data analysis and deriving textual insights.
@@ -621,6 +758,8 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
 
     if not any(str(cached_sql_query).strip()):
         print("triggering all group chat")
+        logging_session_id = autogen.runtime_logging.start(logger_type="file", config={"filename": "runtime.log"})
+        print("Logging session ID: " + str(logging_session_id))
         result = user_proxy.initiate_chat(
             manager,
             message=user_query,
@@ -629,11 +768,18 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
 
         print("result all group chat:   \n", result)
         queue.put((result.chat_history,result.cost))
+        autogen.runtime_logging.stop()
+
+
+
     else:
+        logging_session_id = autogen.runtime_logging.start(logger_type="file", config={"filename": "runtime.log"})
+        print("Logging session ID: " + str(logging_session_id))
         print("triggering insights group chat")
         cached_input = f"""
         user_question: {user_query}
         generated_sql_query: {cached_sql_query}
+        Score:
         """
         result_1 = user_proxy.initiate_chat(
             manager_1,
@@ -642,6 +788,9 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
         )
         print("result insights group chat:   \n", result_1)
         queue.put((result_1.chat_history,result_1.cost))
+        autogen.runtime_logging.stop()
+
+
 
     # print(
     #     f" - chat result:  '{result}'",

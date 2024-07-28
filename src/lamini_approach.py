@@ -70,6 +70,7 @@ azure_openai_embedding_deployment_name = st.secrets["AZURE_EMBEDDING_MODEL"]
 
 
 
+
 client = AzureOpenAI(
     api_key=azure_openai_key,
     api_version=azure_openai_api_version,

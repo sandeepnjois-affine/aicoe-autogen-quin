@@ -1,3 +1,6 @@
 test.py
 venv
 src/__pycache__/
+autogen_logs
+custom_sql_executor_agent.py
+creds_local_txt.txt
