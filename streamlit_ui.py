@@ -13,20 +13,28 @@ import ast
 import sqlparse
 import os
 import shutil
+import matplotlib.pyplot as plt
+from dotenv import load_dotenv
+
 # Function to handle and display messages
 
+load_dotenv(".env")
+path = os.getcwd()
+print(path)
 
 # client = AzureOpenAI(
-#     azure_endpoint=st.secrets["AZURE_OPENAI_ENDPOINT"],
-#     api_version=st.secrets["AZURE_OPENAI_VERSION"],
-#     api_key=st.secrets["AZURE_OPENAI_KEY"])
+#     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+#     api_version=os.getenv("AZURE_OPENAI_VERSION"),
+#     api_key=os.getenv("AZURE_OPENAI_KEY"))
 
 
 
 client = AzureOpenAI(
-    azure_endpoint="https://aipractices.openai.azure.com/",
-    api_version="2024-02-01",
-    api_key="1dfa2422e0ba43a88044e87df4655c4c")
+    azure_endpoint=st.secrets["AZURE_OPENAI_ENDPOINT"],
+    api_version=st.secrets["AZURE_OPENAI_VERSION"],
+    api_key=st.secrets["AZURE_OPENAI_KEY"])
+
+
 
 
 def check_name_occurrences(data, key, name_value):
@@ -65,9 +73,19 @@ def get_gpt_res(str_content, var):
             messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
                     {"role": "user", "content": prompt_}])
         output = completion.choices[0].message.content
+        return output
+    elif var == 'python_code':
+        pre_def_prompt = f'From the above given content, extract the final {var}: mentioned and answer just that. Do NOT explain anything else, just answer code within triple backticks (```)'
+        prompt_ = 'Content:\n' + str_content + '\n' + pre_def_prompt
+        completion = client.chat.completions.create(
+            model="gpt-4o-05-13",
+            temperature=0,
+            messages=[{'role': 'system', 'content': 'You are a helpful assistant who is an expert in analyzing text data and formatting.'},
+                    {"role": "user", "content": prompt_}])
+        output = completion.choices[0].message.content
+        return output
   except Exception as e:
         print("Exception in get_gpt_res as: ", e)
-  return output
 
 def get_agent_chat_summary(chat_history, cost):
     sql_query = ''
@@ -76,6 +94,7 @@ def get_agent_chat_summary(chat_history, cost):
     insights_critic_iter = 0
     sql_critic_messages = ''
     insights_critic_messages = ''
+    python_code = """"""
     total_cost = 0
     total_tokens = 0
 
@@ -84,6 +103,20 @@ def get_agent_chat_summary(chat_history, cost):
     insights_critic_cnt = check_name_occurrences(chat_history, 'name', 'insights_critic')
 
 
+    all_content = [x['content'] for x in chat_history]
+    last_dict_with_phrase = None
+    for entry in reversed(chat_history):
+        if 'generated_sql_query' in entry['content']:
+            last_dict_with_phrase = entry
+            break
+
+    last_dict_with_python_code = None
+    for entry in reversed(chat_history):
+        if 'python_code' in entry['content']:
+            last_dict_with_python_code = entry
+            break
+
+    print("last_dict_with_python_code:  ", last_dict_with_python_code)
 
     if terminator_cnt > 0:
         if insights_critic_cnt > 0:
@@ -96,11 +129,14 @@ def get_agent_chat_summary(chat_history, cost):
           if sql_critic_cnt > 0:
             sql_critic_iter = sql_critic_cnt
             sql_critic_messages = get_critic_message(sql_critic_lst)
-            sql_query = get_gpt_res("\n".join(sql_critic_lst[-3:]), 'generated_sql_query')
+            sql_query = get_gpt_res(last_dict_with_phrase["content"], 'generated_sql_query')
+            # sql_query = get_gpt_res("\n".join(sql_critic_lst[-3:]), 'generated_sql_query')
+
           else:
             sql_critic_iter = 1
             sql_critic_messages = 'all-good'
-            sql_query = get_gpt_res("\n".join(insights_critic_lst[-3:]), 'generated_sql_query')
+            # sql_query = get_gpt_res("\n".join(insights_critic_lst[-3:]), 'generated_sql_query')
+            sql_query = get_gpt_res(last_dict_with_phrase["content"], 'generated_sql_query')
 
         else:
           print("get_agent_chat_summary if else")
@@ -116,18 +152,24 @@ def get_agent_chat_summary(chat_history, cost):
           print("get_agent_chat_summary else")
           sql_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'sql_critic']
           insights_critic_lst = [x['content'] for x in chat_history if x.get('name') == 'insights_critic']
+          insights_generator_lst = [x['content'] for x in chat_history if x.get('name') == 'insights_generator']
+
           insights_critic_iter = insights_critic_cnt
         #   sql_query = get_gpt_res(insights_critic_lst[-1], 'generated_sql_query')
-          insights = get_gpt_res("\n".join(insights_critic_lst[-3:]), 'insights')
+          insights = get_gpt_res("\n".join(insights_generator_lst[-3:]), 'insights')
+          print("insights:  ", insights)
+          python_code = get_gpt_res(last_dict_with_python_code["content"], 'python_code')
+          python_code = str(python_code).strip().lstrip("```python").rstrip("```").strip()
+          print("python_code 143  ", python_code)
           insights_critic_messages = get_critic_message(insights_critic_lst)
           if sql_critic_cnt > 0:
             sql_critic_iter = sql_critic_cnt
             sql_critic_messages = get_critic_message(sql_critic_lst)
-            sql_query = get_gpt_res("\n".join(sql_critic_lst[-3:]), 'generated_sql_query')
+            sql_query = get_gpt_res(last_dict_with_phrase["content"], 'generated_sql_query')
           else:
             sql_critic_iter = 1
             sql_critic_messages = 'all-good'
-            sql_query = get_gpt_res("\n".join(insights_critic_lst[-3:]), 'generated_sql_query')
+            sql_query = get_gpt_res(last_dict_with_phrase["content"], 'generated_sql_query')
 
     usage_excluding_cached_inference = cost['usage_excluding_cached_inference']
     total_cost = usage_excluding_cached_inference['total_cost']
@@ -143,7 +185,7 @@ def get_agent_chat_summary(chat_history, cost):
           total_tokens += model_data['total_tokens']
 
 
-    return sql_query, insights, sql_critic_iter, insights_critic_iter, sql_critic_messages, insights_critic_messages, total_cost, total_tokens
+    return sql_query, insights, sql_critic_iter, insights_critic_iter, sql_critic_messages, insights_critic_messages, total_cost, total_tokens, python_code
 
 
 
@@ -220,6 +262,14 @@ def summarize_chat_result(chat_result):
 
     return output_
 
+def plot_to_base64(plot_code):
+    #plot_code = inspect.getsource(plt.show)
+    plot_code = plot_code.replace("plt.show()"," ")
+    print("plot_code:::",plot_code)
+    exec(plot_code)
+    print("executed code")
+    # Convert the plot to a base64-encoded image
+    st.pyplot(plt.gcf())
 
 def strip_ansi_codes(text):
     ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
@@ -429,6 +479,8 @@ if __name__ == "__main__":
         insights_critic_messages = chat_history_res[5]
         no_of_tokens = chat_history_res[7]
         cost = chat_history_res[6]
+        python_code = chat_history_res[8]
+        plot_to_base64(python_code)
         # uploading
         # spinner - updating our data model
         # successfully updated

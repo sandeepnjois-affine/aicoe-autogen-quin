@@ -17,10 +17,13 @@ import pandas as pd
 import pyodbc as odbc
 import streamlit as st
 import re
+from dotenv import load_dotenv
 
+load_dotenv(".env")
 
 
 db_creds_string = st.secrets["DB_STRING"]
+
 print("db_creds_string:  ", db_creds_string)
 
 class SQLExecutorAgent(AssistantAgent):
@@ -176,7 +179,6 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     tip_message = "\nIf you do your BEST WORK, I'll tip you $100!"
 
 
-
     llm_config_azure = [
         {
             "model": st.secrets["AZURE_OPENAI_MODEL"],
@@ -314,7 +316,7 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     # print("#################6############################")
     # print(data_analyst_system_message)
     # Now use AutoGen with Langchain Tool Bridgre
-    df_insights = pd.DataFrame()
+    # df_insights = pd.DataFrame()
     tools = []
     function_map = {}
 
@@ -337,6 +339,12 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
             function_schema["parameters"]["properties"] = tool.args
 
         return function_schema
+
+
+    # Get tables
+    # Get table properties with sample data
+    # Validate SQL query
+    # Execute SQL query
 
     for tool in toolkit.get_tools():  # debug_toolkit if you want to use tools directly
         tool_schema = generate_llm_config(tool)
@@ -376,13 +384,13 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
 
     # Agent 2
 
-    llm_config_lst_critic = {
-        "functions": tools_critic,
-        # Assuming you have this defined elsewhere
-        "config_list": llm_config["config_list"],
-        "timeout": 120,
-        "stream": True
-    }
+    # llm_config_lst_critic = {
+    #     "functions": tools_critic,
+    #     # Assuming you have this defined elsewhere
+    #     "config_list": llm_config["config_list"],
+    #     "timeout": 120,
+    #     "stream": True
+    # }
 
     # Note: Ignore the fact that the SQL query limits to only few records, this is included on purpose and you can consider this scenario as ALL GOOD. Apart from this you need to evaluate for all the other constraints.
 
@@ -404,10 +412,11 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     2. Analyze the user_question and generated_sql_query based on checklist and evaluate how well the generated_sql_query translates the user_question semantically and syntactically.
     3. Also analyze based on the intent of the user_question on specifics/nuances in the user_question and if generated_sql_query is able to fulfill those
     4. Given the information above, give a numeric score of 0 to the generated_sql_query if it doesn't correctly handle the user_question, and give a numeric score of 1 if the generated_sql_query correctly handles the user_question.
-    5. If the SQL query execution results in an error, give a numeric score of 0 and provide a critic message
-    6. If the SQL query executes without error, but the results do not correctly address the user's question, give a numeric score of 0 and provide a critic message
-    7. If the SQL query correctly translates and addresses the user_question, give a numeric score of 1 and answer 'ALL-GOOD' as the critic message.
-    8. Answer your score, critic message in the below format and do NOT explain anything else.
+    5. Use TOP instead of LIMIT
+    6. If the SQL query execution results in an error, give a numeric score of 0 and provide a critic message
+    7. If the SQL query executes without error, but the results do not correctly address the user's question, give a numeric score of 0 and provide a critic message
+    8. If the SQL query correctly translates and addresses the user_question, give a numeric score of 1 and answer 'ALL-GOOD' as the critic message.
+    9. Answer your score, critic message in the below format and do NOT explain anything else.
 
     Format- 
     user_question: (user_question)
@@ -526,6 +535,14 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
 
     You will recieve a user_question in natural language, generated_sql_query and a df dataframe as inputs. 
     You will need to analyze the dataframe df and provide textual insights on the basis of user question
+    You will also write a python code to generate plot/graph/chart over the df dataframe which can give visual insights on the basis of user question. 
+    To write python code in order to generate plot, use seaborn library.
+
+    If you plan to generate a bar plot, prefer to have vertical bar plot
+    The plot should look refined and professional.
+    Do NOT use list repetition while generating list elements instead write the entire list of elements which will be used for dataframe. For eg. Do NOT write like this [2015]*3. Rather write like this [2015, 2015, 2015] 
+    Do not use scientific notations. convert axis range to Thousand, Million or Billion etc.
+    If hues are present, color-coded legends must be included. Legend should not be overlapping on the graph.
 
     Do NOT include any information based on generated_sql_query or df in your answer.
     Do NOT add things like based on the query or something.
@@ -536,6 +553,7 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     user_question: (user_question)
     generated_sql_query: (generated_sql_query)
     insights: (textual insights)
+    python_code: ```python code```
 
     """
 
@@ -550,9 +568,10 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     insights_critic_system_message = """
     You are data insights critic
 
-    You will receive user_question, generated_sql_query and insights.
+    You will receive user_question, generated_sql_query, python_code and insights.
 
     You need to check if the insights is relevant and related to the user_question?
+    Do not critic anything on the python_code. Only focus on the insights.
 
     If yes, give a Score of 1. Otherwise Score 0.
 
@@ -562,6 +581,7 @@ def on_connect(iostream: IOWebsockets, queue) -> None:
     user_question: (user_question)
     generated_sql_query: (generated_sql_query)
     insights: (insights)
+    python_code: ```python code```
     Score: (score)
     Critic message: (critic message)
 

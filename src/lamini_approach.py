@@ -26,6 +26,10 @@ import ast
 import streamlit as st
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 import uuid
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
 from azure.search.documents.models import (
     QueryAnswerType,
     QueryCaptionType,
@@ -47,7 +51,7 @@ def similarity_search(query, database_name='quickinsight', cache_threshold=0.94)
         top=3)
 
     results = list(results)
-    if results[0]:
+    if results:
         results_ = results[0]
         if results_['@search.score'] >= cache_threshold:
             cached_sql_query = results_['sql_query']
@@ -66,6 +70,8 @@ azure_openai_key = st.secrets["AZURE_OPENAI_KEY"]
 azure_openai_api_version = st.secrets["AZURE_OPENAI_VERSION"]
 azure_openai_gpt_model_deployment_name = st.secrets["AZURE_OPENAI_MODEL"]
 azure_openai_embedding_deployment_name = st.secrets["AZURE_EMBEDDING_MODEL"]
+
+
 
 
 
