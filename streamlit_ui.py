@@ -377,7 +377,7 @@ if __name__ == "__main__":
     def on_connect_wrapper(websocket):
         on_connect(websocket, queue)
 
-    with IOWebsockets.run_server_in_thread(on_connect=on_connect_wrapper, port=8766) as uri:
+    with IOWebsockets.run_server_in_thread(on_connect=on_connect_wrapper, port=8777) as uri:
         print(
             f" - test_setup() with websocket server running on {uri}.", flush=True)
 
