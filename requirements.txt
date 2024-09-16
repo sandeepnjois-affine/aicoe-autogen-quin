@@ -21,3 +21,5 @@ azure-search-documents==11.6.0b3
 tenacity==8.4.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
+matplotlib==3.9.2
+seaborn==0.13.2
